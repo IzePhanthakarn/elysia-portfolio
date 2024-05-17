@@ -1,157 +1,200 @@
 import { PrismaClient } from "@prisma/client";
 import { Context } from "elysia";
 import { SignUpBody, SignInBody } from "../model/authModel";
-import { comparePassword, hashPassword } from "../libs/bcrypt";
 import { jwt } from "../libs/jwt";
 
 const db = new PrismaClient();
 
 export const createUser = async (c: Context) => {
-  const { email, firstname, lastname, phone, password } = c.body as SignUpBody;
-  if (!c.body) {
-    c.set.status = 500;
-    return {
-      success: false,
-      message: "No body provided",
-    };
-  }
+  try {
+    const { email, firstname, lastname, phone, password } =
+      c.body as SignUpBody;
+    if (!c.body) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "no body provided",
+      };
+    }
 
-  const isEmailAllReadyExist = await db.user.findFirst({
-    where: {
-      email: email,
-    },
-  });
+    const isEmailAllReadyExist = await db.user.findFirst({
+      where: {
+        email: email,
+      },
+    });
 
-  if (isEmailAllReadyExist) {
-    c.set.status = 500;
-    return {
-      success: false,
-      message: "Email all ready in use",
-    };
-  }
+    if (isEmailAllReadyExist) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "email all ready in use",
+      };
+    }
 
-  const { hash, salt } = await hashPassword(password);
+    const bcryptHash = await Bun.password.hash(password, {
+      algorithm: "bcrypt",
+      cost: 4,
+    });
 
-  const newUser = await db.user.create({
-    data: {
-      email,
-      firstname,
-      lastname,
-      phone,
-      salt,
-      hash,
-    },
-  });
+    const newUser = await db.user.create({
+      data: {
+        email,
+        firstname,
+        lastname,
+        phone,
+        password: bcryptHash,
+      },
+    });
 
-  if (!newUser) {
-    c.set.status = 500;
+    if (!newUser) {
+      c.set.status = 500;
+      return {
+        success: true,
+        message: "invalid user data!",
+      };
+    }
+
+    c.set.status = 201;
     return {
       success: true,
-      message: "Invalid user data!",
+      message: "create user successful!",
+    };
+  } catch (error) {
+    c.set.status = 500;
+    return {
+      success: false,
+      message: error,
     };
   }
-
-  c.set.status = 201;
-  return {
-    success: true,
-    message: "User created successfully",
-  };
 };
 
 export const signIn = async (c: Context) => {
-  const { email, password } = c.body as SignInBody;
-  if (!c.body) {
-    c.set.status = 500;
-    return {
-      success: false,
-      message: "No body provided",
-      data: null,
+  try {
+    const { email, password } = c.body as SignInBody;
+    if (!c.body) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "no body provided",
+        data: null,
+      };
+    }
+
+    // verify email
+    const user = await db.user.findFirst({
+      where: {
+        email: email,
+      },
+    });
+
+    if (!user) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "user not found!",
+        data: null,
+      };
+    }
+
+    // verify password
+    const match = await Bun.password.verify(password, user.password);
+    if (!match) {
+      c.set.status = 201;
+      return {
+        success: false,
+        message: "invalid password!",
+        data: null,
+      };
+    }
+
+    const dataToken = {
+      id: user.id,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
     };
-  }
 
-  // verify email
-  const user = await db.user.findFirst({
-    where: {
-      email: email,
-    },
-  });
+    // generate access and refresh token
+    const accessToken = await jwt.sign({
+      data: dataToken,
+      exp: "1h",
+    });
 
-  if (!user) {
-    c.set.status = 500;
-    return {
-      success: false,
-      message: "Invalid email!",
-      data: null,
-    };
-  }
+    const refreshToken = await jwt.sign({
+      data: dataToken,
+      exp: "14d",
+    });
 
-  // verify password
-  const match = await comparePassword(password, user.salt, user.hash);
-  if (!match) {
     c.set.status = 201;
     return {
+      success: true,
+      message: "sign up successful!",
+      data: {
+        accessToken,
+        refreshToken,
+      },
+    };
+  } catch (error) {
+    c.set.status = 500;
+    return {
       success: false,
-      message: "Invalid password!",
-      data: null,
+      message: error,
     };
   }
-
-  const dataToken = {
-    firstname: user.firstname,
-    lastname: user.lastname,
-    email: user.email,
-    role: user.role,
-  };
-
-  // generate access and refresh token
-  const accessToken = await jwt.sign({
-    data: dataToken,
-    exp: "1h",
-  });
-
-  const refreshToken = await jwt.sign({
-    data: dataToken,
-    exp: "14d",
-  });
-
-  c.set.status = 201;
-  return {
-    success: true,
-    message: "User Sign Up",
-    data: {
-      accessToken,
-      refreshToken,
-    },
-  };
 };
 
 export const userInfo = async (c: Context) => {
-  // Get user id from token
-  let decoded;
-  let user;
-  if (c.headers.authorization && c.headers.authorization.startsWith("Bearer")) {
-    const token = c.headers.authorization.split(" ")[1];
-    decoded = await jwt.verify(token);
-  }
-  if (decoded) {
-    user = await db.user.findFirst({
-      where: {
-        email: `${decoded.email}`,
-      },
-      select: {
-        firstname: true,
-        lastname: true,
-        email: true,
-        phone: true,
-      },
-    });
-  }
+  try {
+    // Get user id from token
+    let decoded;
+    let user;
+    if (
+      c.headers.authorization &&
+      c.headers.authorization.startsWith("Bearer")
+    ) {
+      const token = c.headers.authorization.split(" ")[1];
+      decoded = await jwt.verify(token);
+    }
 
-  return {
-    success: true,
-    message: "Fetch authenticated user details",
-    data: {
-      ...user,
-    },
-  };
+    if (!c.headers.authorization) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "no authorization",
+        data: null,
+      };
+    }
+
+    if (decoded) {
+      user = await db.user.findFirst({
+        where: {
+          email: `${decoded.email}`,
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          email: true,
+          phone: true,
+          role: true
+        },
+      });
+    }
+
+    return {
+      success: true,
+      message: "fetch authenticated user details",
+      data: {
+        ...user,
+      },
+    };
+  } catch (error) {
+    c.set.status = 500;
+    return {
+      success: false,
+      message: error,
+    };
+  }
 };
