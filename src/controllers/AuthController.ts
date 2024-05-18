@@ -178,7 +178,7 @@ export const userInfo = async (c: Context) => {
           lastname: true,
           email: true,
           phone: true,
-          role: true
+          role: true,
         },
       });
     }
@@ -190,6 +190,84 @@ export const userInfo = async (c: Context) => {
         ...user,
       },
     };
+  } catch (error) {
+    c.set.status = 500;
+    return {
+      success: false,
+      message: error,
+    };
+  }
+};
+
+export const getAccessToken = async (c: Context) => {
+  try {
+    let decoded;
+    let user;
+    if (
+      c.headers.authorization &&
+      c.headers.authorization.startsWith("Bearer")
+    ) {
+      const token = c.headers.authorization.split(" ")[1];
+      decoded = await jwt.verify(token);
+    }
+
+    if (!c.headers.authorization) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "no authorization",
+        data: null,
+      };
+    }
+
+    if (decoded) {
+      user = await db.user.findFirst({
+        where: {
+          email: `${decoded.email}`,
+        },
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      });
+    }
+
+    if (!user) {
+      c.set.status = 500;
+      return {
+        success: false,
+        message: "user not found!",
+        data: null,
+      };
+    }
+
+    const dataToken = {
+      id: user.id,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+    };
+
+    // generate access and refresh token
+    const accessToken = await jwt.sign({
+      data: dataToken,
+      exp: "1h",
+    });
+
+    c.set.status = 200;
+    return {
+      success: true,
+      message: "generate access token successful!",
+      data: {
+        accessToken
+      }
+    }
   } catch (error) {
     c.set.status = 500;
     return {

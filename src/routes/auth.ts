@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { createUser, signIn, userInfo } from "../controllers/AuthController";
+import { createUser, getAccessToken, signIn, userInfo } from "../controllers/AuthController";
 import { auth } from "../middlewares/auth";
 
 const authRoutes = (app: Elysia) => {
@@ -28,7 +28,15 @@ const authRoutes = (app: Elysia) => {
         },
       })
 
-      .get("/userinfo", userInfo, {
+      .get("/userInfo", userInfo, {
+        beforeHandle: (c) => auth(c),
+        detail: {
+          security: [{ bearer: [] }],
+          tags: ["Auth"],
+        },
+      })
+
+      .get("/getAccessToken", getAccessToken, {
         beforeHandle: (c) => auth(c),
         detail: {
           security: [{ bearer: [] }],
