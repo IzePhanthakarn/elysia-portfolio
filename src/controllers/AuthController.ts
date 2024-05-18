@@ -13,7 +13,7 @@ export const createUser = async (c: Context) => {
       c.set.status = 500;
       return {
         success: false,
-        message: "no body provided",
+        message: "No body provided",
       };
     }
 
@@ -24,10 +24,10 @@ export const createUser = async (c: Context) => {
     });
 
     if (isEmailAllReadyExist) {
-      c.set.status = 500;
       return {
+        code: 409,
         success: false,
-        message: "email all ready in use",
+        message: "Email all ready in use",
       };
     }
 
@@ -47,17 +47,17 @@ export const createUser = async (c: Context) => {
     });
 
     if (!newUser) {
-      c.set.status = 500;
       return {
+        code: 400,
         success: true,
-        message: "invalid user data!",
+        message: "Invalid user data!",
       };
     }
 
     c.set.status = 201;
     return {
       success: true,
-      message: "create user successful!",
+      message: "Account has been created!",
     };
   } catch (error) {
     c.set.status = 500;
@@ -75,7 +75,7 @@ export const signIn = async (c: Context) => {
       c.set.status = 500;
       return {
         success: false,
-        message: "no body provided",
+        message: "No body provided",
         data: null,
       };
     }
@@ -88,10 +88,10 @@ export const signIn = async (c: Context) => {
     });
 
     if (!user) {
-      c.set.status = 500;
       return {
+        code: 404,
         success: false,
-        message: "user not found!",
+        message: "User not found!",
         data: null,
       };
     }
@@ -99,10 +99,10 @@ export const signIn = async (c: Context) => {
     // verify password
     const match = await Bun.password.verify(password, user.password);
     if (!match) {
-      c.set.status = 201;
       return {
+        code: 401,
         success: false,
-        message: "invalid password!",
+        message: "Invalid password!",
         data: null,
       };
     }
@@ -130,7 +130,7 @@ export const signIn = async (c: Context) => {
     c.set.status = 201;
     return {
       success: true,
-      message: "sign up successful!",
+      message: `Welcome back! ${user.firstname} `,
       data: {
         accessToken,
         refreshToken,
@@ -162,7 +162,7 @@ export const userInfo = async (c: Context) => {
       c.set.status = 500;
       return {
         success: false,
-        message: "no authorization",
+        message: "No authorization",
         data: null,
       };
     }
@@ -185,7 +185,7 @@ export const userInfo = async (c: Context) => {
 
     return {
       success: true,
-      message: "fetch authenticated user details",
+      message: "Fetch authenticated user details",
       data: {
         ...user,
       },
@@ -215,7 +215,7 @@ export const getAccessToken = async (c: Context) => {
       c.set.status = 500;
       return {
         success: false,
-        message: "no authorization",
+        message: "No authorization",
         data: null,
       };
     }
@@ -240,7 +240,7 @@ export const getAccessToken = async (c: Context) => {
       c.set.status = 500;
       return {
         success: false,
-        message: "user not found!",
+        message: "User not found!",
         data: null,
       };
     }
@@ -263,7 +263,7 @@ export const getAccessToken = async (c: Context) => {
     c.set.status = 200;
     return {
       success: true,
-      message: "generate access token successful!",
+      message: "Generate access token successful!",
       data: {
         accessToken
       }

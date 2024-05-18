@@ -20,7 +20,7 @@ model User {
   email     String   @unique
   phone     String
   role      Role     @default(USER)
-  password      String
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -28,6 +28,11 @@ model User {
 enum Role {
   USER
   ADMIN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
 }
 
 model BankAccount {
@@ -42,6 +47,18 @@ model BankAccountUser {
   id        Int      @id @default(autoincrement())
   userId    Int
   bankId    Int
+  balance   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int
+  amount    Int
+  tag       String
+  status    Status   @default(ACTIVE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
