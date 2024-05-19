@@ -10,7 +10,7 @@ export const swaggerConfig: ElysiaSwaggerConfig = {
     },
     tags: [
       { name: "Auth", description: "Authentication endpoints" },
-      { name: "App", description: "General endpoints" },
+      { name: "Subscription", description: "Subscription endpoints" },
     ],
     components: {
       securitySchemes: {

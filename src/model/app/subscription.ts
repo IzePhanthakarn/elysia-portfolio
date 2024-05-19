@@ -1,4 +1,5 @@
 export type SubscriptionBody = {
+  id: number;
   name: string;
   amount: number;
   tag: string;
